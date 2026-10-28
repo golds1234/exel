@@ -1,0 +1,54 @@
+name: Extract MyXL Cardamom Keys
+
+on:
+  workflow_dispatch:
+    inputs:
+      apk_url:
+        description: 'Direct Download Link XAPK/APK (APKPure / APKMirror)'
+        required: true
+        type: string
+
+jobs:
+  extract-keys:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🐍 Setup Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: 📦 Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install capstone cryptography
+
+      - name: 🌐 Download APK / XAPK
+        run: |
+          echo "Mengunduh file dari: ${{ github.event.inputs.apk_url }}"
+          # Menggunakan curl dengan User-Agent browser untuk meminimalisir blokir Anti-Bot
+          curl -L -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" -o app.xapk "${{ github.event.inputs.apk_url }}"
+          
+          # Cek apakah file berhasil diunduh dan bukan file HTML (error page)
+          FILE_TYPE=$(file app.xapk)
+          echo "Tipe file yang diunduh: $FILE_TYPE"
+          if [[ "$FILE_TYPE" == *"HTML"* ]]; then
+            echo "❌ ERROR: Tautan mengarah ke halaman web (HTML), bukan file APK/XAPK."
+            exit 1
+          fi
+
+      - name: 🚀 Jalankan Skrip Ekstraksi
+        run: |
+          chmod +x main.py
+          python main.py app.xapk --out keys-dari-xapk
+
+      - name: 📤 Upload Hasil (Artifacts)
+        uses: actions/upload-artifact@v4
+        with:
+          name: Hasil-Cardamom-Keys
+          path: keys-dari-xapk/
+          retention-days: 5
+          
